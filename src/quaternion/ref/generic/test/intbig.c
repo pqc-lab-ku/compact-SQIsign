@@ -133,7 +133,15 @@ ibz_test_init_set_cmp()
     res = res | (ibz_get(&b) != 0);
     res = res | (ibz_cmp_int32(&b, 0) != 0);
 
+    /* Copy and swap support aliasing, including the all-one negative value. */
+    ibz_copy(&a, &a);
+    ibz_swap(&a, &a);
+    res = res | !ibz_is_one(&a);
+
     ibz_set(&a, -1);
+    ibz_copy(&a, &a);
+    ibz_swap(&a, &a);
+    res = res | (ibz_cmp_int32(&a, -1) != 0);
     res = res | !(ibz_cmp(&a, &b) < 0);
     res = res | !(ibz_cmp(&b, &c) < 0);
     res = res | !(ibz_cmp(&b, &a) > 0);

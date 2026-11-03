@@ -370,12 +370,16 @@ ibz_finalize(ibz_t *x)
 void
 ibz_copy(ibz_t *target, const ibz_t *value)
 {
-    memcpy(*target, *value, sizeof(ibz_t));
+    /* In-place arithmetic routinely copies an integer onto itself. */
+    if (target != value)
+        memcpy(*target, *value, sizeof(ibz_t));
 }
 
 void
 ibz_swap(ibz_t *a, ibz_t *b)
 {
+    if (a == b)
+        return;
     uint64_t tmp[IBZ_LIMBS];
     memcpy(tmp, *a, sizeof(ibz_t));
     memcpy(*a, *b, sizeof(ibz_t));
