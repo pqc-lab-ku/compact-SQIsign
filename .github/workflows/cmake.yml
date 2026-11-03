@@ -69,7 +69,7 @@ jobs:
 
       - name: Install documentation dependencies
         if: ${{ ((matrix.gf_radix != 32) && (matrix.enable_sign == 'ON') && (matrix.gmp_library == 'SYSTEM')) }}
-        run: sudo apt-get install -y --no-install-recommends doxygen texlive-latex-extra texlive-fonts-recommended
+        run: sudo apt-get install -y --no-install-recommends doxygen texlive-latex-extra texlive-fonts-recommended texlive-plain-generic
 
       - name: Set up environment for ccache
         run: echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV

@@ -117,6 +117,12 @@ quat_test_lat_ball_large_coordinate_bound(void)
     ibz_mat_4x4_zero(&G);
     res |= quat_lattice_bound_parallelogram(&box, &U, &G, &ibz_const_one);
 
+    /* Positive diagonal entries alone do not certify definiteness. */
+    ibz_mat_4x4_identity(&G);
+    ibz_set(&G[0][1], 2);
+    ibz_set(&G[1][0], 2);
+    res |= quat_lattice_bound_parallelogram(&box, &U, &G, &ibz_const_one);
+
     ibz_finalize(&abs_coord);
     ibz_finalize(&norm);
     ibz_finalize(&det);
@@ -307,6 +313,22 @@ quat_test_lat_ball_sample_from_ball()
                 break;
         }
     }
+
+    /* A valid but ill-conditioned input from a randomized CI failure.
+     * The unreduced DPE interval contains zero in its last pivot; exact
+     * leading minors still certify positivity within the fixed width. */
+    const int32_t ill_conditioned[4][4] = {
+        { -754, 346, -14, -311 },
+        { -675, -165, -777, -617 },
+        { 1005, 442, -363, -681 },
+        { -87, -366, 602, 866 }
+    };
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            ibz_set(&lattice.basis[i][j], ill_conditioned[i][j]);
+    ibz_set(&lattice.denom, 40);
+    ibz_set(&radius, 68307869);
+    res |= quat_test_lat_ball_sample_helper(&lattice, &radius, &alg);
 
     /* Force the post-bound quadratic-form capacity preflight to fail: the
      * radius itself fits, but the complete reduced box's corner bound does
