@@ -69,7 +69,7 @@ jobs:
 
       - name: Install documentation dependencies
         if: ${{ ((matrix.gf_radix != 32) && (matrix.enable_sign == 'ON') && (matrix.gmp_library == 'SYSTEM')) }}
-        run: sudo apt-get install -y --no-install-recommends doxygen texlive-xetex
+        run: sudo apt-get install -y --no-install-recommends doxygen texlive-latex-extra texlive-fonts-recommended
 
       - name: Set up environment for ccache
         run: echo "PATH=/usr/lib/ccache:$PATH" >> $GITHUB_ENV
@@ -87,7 +87,7 @@ jobs:
       - name: Build documentation
         # Create html and latex documentation, TODO: do we need different docs for ref and opt?
         if: ${{ ((matrix.gf_radix != 32) && (matrix.enable_sign == 'ON') && (matrix.gmp_library == 'SYSTEM')) }}
-        run: doxygen Doxyfile && cd latex && xelatex refman
+        run: doxygen Doxyfile && make -C latex
 
       - name: Upload latex documentation
         if: ${{ ((matrix.gf_radix != 32) && (matrix.enable_sign == 'ON') && (matrix.gmp_library == 'SYSTEM')) }}
