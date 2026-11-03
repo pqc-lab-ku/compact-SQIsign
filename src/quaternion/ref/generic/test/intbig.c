@@ -350,6 +350,36 @@ ibz_test_fixed_precision_regressions(void)
     }
     if (res != section_res) printf("  signed division regression failed\n");
 
+    /* Force quotient-estimate correction and add-back in base 2^32 and
+     * base 2^64: a = 2*d-1 has quotient one, including a three-word d whose
+     * zero middle word prevents correction until the subtraction. */
+    section_res = res;
+    for (unsigned word_bits = 32; word_bits <= 64; word_bits += 32) {
+        for (unsigned words = 2; words <= 3; ++words) {
+            ibz_set(&a, 1);
+            ibz_mul_2exp(&a, &a, word_bits);
+            ibz_sub(&a, &a, &ibz_const_one);
+            ibz_set(&b, 1);
+            ibz_mul_2exp(&b, &b, words * word_bits - 1);
+            ibz_add(&b, &b, &a);
+            ibz_mul_2exp(&a, &b, 1);
+            ibz_sub(&a, &a, &ibz_const_one);
+            ibz_div(&q, &r, &a, &b);
+            ibz_sub(&check, &b, &ibz_const_one);
+            res |= !ibz_is_one(&q) || ibz_cmp(&r, &check) != 0;
+
+            /* A saturated quotient word also exercises rhat overflow. */
+            ibz_set(&exponent, 1);
+            ibz_mul_2exp(&exponent, &exponent, word_bits);
+            ibz_sub(&exponent, &exponent, &ibz_const_one);
+            ibz_mul(&a, &b, &exponent);
+            ibz_add(&a, &a, &check);
+            ibz_div(&q, &r, &a, &b);
+            res |= ibz_cmp(&q, &exponent) != 0 || ibz_cmp(&r, &check) != 0;
+        }
+    }
+    if (res != section_res) printf("  division word-boundary regression failed\n");
+
     /* INTBIG_MIN remains usable in division, GCD, size and string paths. */
     section_res = res;
     ibz_set(&b, 3);
