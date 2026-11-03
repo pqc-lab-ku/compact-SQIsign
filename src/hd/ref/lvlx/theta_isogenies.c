@@ -887,7 +887,8 @@ sample_random_index(void)
 
     do {
         randombytes(seed_arr, 4);
-        seed = (seed_arr[0] | (seed_arr[1] << 8) | (seed_arr[2] << 16) | (seed_arr[3] << 24));
+        seed = ((uint32_t)seed_arr[0] | ((uint32_t)seed_arr[1] << 8) |
+                ((uint32_t)seed_arr[2] << 16) | ((uint32_t)seed_arr[3] << 24));
     } while (seed >= 4294967292U);
 
     uint32_t secret_index = seed - (((uint64_t)seed * 2863311531U) >> 34) * 6;

@@ -62,16 +62,19 @@ if (NOT DEFINED SQISIGN_BUILD_TYPE)
     set(SQISIGN_BUILD_TYPE "ref")
 endif()
 
+# Quaternion limbs remain 64-bit even when the field uses a 32-bit radix.
+# Detect their double-width arithmetic independently of the field radix.
+check_type_size("__uint128_t" uint128_t)
+if (HAVE_uint128_t AND (uint128_t EQUAL 16))
+    add_compile_definitions(HAVE_UINT128)
+endif()
+
 if (RADIX EQUAL 32)
     if (${SQISIGN_BUILD_TYPE} MATCHES "broadwell")
         message(FATAL_ERROR "Broadwell implementation not supported in 32-bit build")
     endif()
 else()
-    # Testing for unsigned 128-bit integer support
-    check_type_size("__uint128_t" uint128_t)
-    if (${HAVE_uint128_t} AND (uint128_t EQUAL 16))
-        add_compile_definitions(HAVE_UINT128)
-    elseif(${SQISIGN_BUILD_TYPE} MATCHES "ref")
+    if (NOT (HAVE_uint128_t AND uint128_t EQUAL 16) AND SQISIGN_BUILD_TYPE MATCHES "ref")
         message(WARNING "Compiler/platform does not support unsigned 128-bit integers, falling back to 32-bit build")
         set(RADIX 32)
     endif()

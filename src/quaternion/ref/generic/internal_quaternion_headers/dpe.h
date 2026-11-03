@@ -428,6 +428,12 @@ DPE_INLINE void
 dpe_mul (dpe_t x, dpe_t y, dpe_t z)
 {
   DPE_MANT(x) = DPE_MANT(y) * DPE_MANT(z);
+  /* Zero uses DPE_EXPMIN as a sentinel, not an arithmetic exponent. */
+  if (DPE_MANT(x) == 0.0)
+    {
+      DPE_EXP(x) = DPE_EXPMIN;
+      return;
+    }
   DPE_EXP(x) = DPE_EXP(y) + DPE_EXP(z);
   dpe_normalize (x);
 }
@@ -456,6 +462,12 @@ DPE_INLINE void
 dpe_div (dpe_t x, dpe_t y, dpe_t z)
 {
   DPE_MANT(x) = DPE_MANT(y) / DPE_MANT(z);
+  /* Avoid subtracting from the zero sentinel before normalization. */
+  if (DPE_MANT(x) == 0.0)
+    {
+      DPE_EXP(x) = DPE_EXPMIN;
+      return;
+    }
   DPE_EXP(x) = DPE_EXP(y) - DPE_EXP(z);
   dpe_normalize (x);
 }

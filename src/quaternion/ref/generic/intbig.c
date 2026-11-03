@@ -1373,12 +1373,8 @@ ibz_size_in_base(const ibz_t *a, int base)
 size_t
 ibz_digits_required(const ibz_t *a)
 {
-    ibz_t magnitude;
-    ibz_abs_unsigned(&magnitude, a);
-    for (int i = IBZ_LIMBS - 1; i >= 0; --i)
-        if (magnitude[i] != 0)
-            return (size_t)i + 1;
-    return 1;
+    const size_t bits = (size_t)ibz_bitsize(a);
+    return bits ? (bits + RADIX - 1) / RADIX : 1;
 }
 
 int
@@ -1395,7 +1391,8 @@ ibz_to_digits_checked(digit_t *target, size_t target_len, const ibz_t *a)
     if (required > target_len)
         return 0;
 
-    memcpy(target, magnitude, required * sizeof(*target));
+    for (size_t i = 0; i < required; ++i)
+        target[i] = (digit_t)(magnitude[i / (64 / RADIX)] >> ((i % (64 / RADIX)) * RADIX));
     return 1;
 }
 
@@ -1414,8 +1411,8 @@ void
 ibz_copy_digits(ibz_t *a, const digit_t *digits, size_t len)
 {
     ibz_init(a);
-    for (size_t i = 0; i < len && i < IBZ_LIMBS; i++) {
-        (*a)[i] = digits[i];
+    for (size_t i = 0; i < len && i < IBZ_DIGITS; i++) {
+        (*a)[i / (64 / RADIX)] |= (limb_t)digits[i] << ((i % (64 / RADIX)) * RADIX);
     }
 }
 

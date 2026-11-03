@@ -525,9 +525,12 @@ find_uv_from_lists(ibz_t *au,
                         found = ID2ISO_STATUS_FATAL;
                         goto cleanup;
                     }
-                    // we want to remove weird cases where u,v have big power of two
-                    found = found && !ibz_is_zero(u) && !ibz_is_zero(v);
-                    if (number_sum_square == 2) {
+                    // Preserve the original low-32-bit nonzero check explicitly:
+                    // a large common power of two can collapse the auxiliary
+                    // degrees after normalization (e.g. u = v = 1).
+                    found = !ibz_is_zero(u) && !ibz_is_zero(v) &&
+                            ibz_two_adic(u) < 32 && ibz_two_adic(v) < 32;
+                    if (found && number_sum_square == 2) {
                         found = ibz_cornacchia_prime(au, bu, &ibz_const_one, u);
                     }
                 }

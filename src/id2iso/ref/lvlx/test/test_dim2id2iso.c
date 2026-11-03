@@ -2,6 +2,7 @@
 #include "id2iso_tests.h"
 #include <hd.h>
 #include <tools.h>
+#include <torsion_constants.h>
 
 static int
 ec_is_on_curve(ec_point_t *P, ec_curve_t *E)
@@ -281,6 +282,26 @@ dim2id2iso_test_dimid2iso(void)
     ibz_init(&v);
     ibz_init(&d1);
     ibz_init(&d2);
+
+    // Regression: the first level-1 connecting ideal previously selected
+    // u = v = 2^121.  These are nonzero, but normalization gives degree one
+    // and the general norm-representation/theta-chain path fails.
+    int index1, index2;
+    found = find_uv(&u, &v, &beta1, &beta2, &d1, &d2, &index1, &index2,
+                    &TORSION_PLUS_2POWER, &ALTERNATE_CONNECTING_IDEALS[0],
+                    &QUATALG_PINFTY, NUM_ALTERNATE_EXTREMAL_ORDERS);
+    if (found <= 0 || ibz_is_zero(&u) || ibz_is_zero(&v) ||
+        ibz_two_adic(&u) >= 32 || ibz_two_adic(&v) >= 32) {
+        found = 0;
+        goto cleanup;
+    }
+    ibz_mul(&temp, &u, &d1);
+    ibz_mul(&remainder, &v, &d2);
+    ibz_add(&temp, &temp, &remainder);
+    if (ibz_cmp(&temp, &TORSION_PLUS_2POWER) != 0) {
+        found = 0;
+        goto cleanup;
+    }
 
     // we start by checking that the precomputation is correct, while checking at the same time our
     // algorithm

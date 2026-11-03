@@ -2,6 +2,7 @@
 #define INTBIG_H
 #pragma once
 #include <stdint.h>
+#include <tutil.h>
 #include <stddef.h>
 #include <string.h>
 #include <rng.h>
@@ -55,11 +56,12 @@ extern "C"
 #ifndef IBZ_BITS
 #define IBZ_BITS (IBZ_LIMBS * 64)
 #endif
+/* Field digits may be 32-bit; fixed-precision storage always uses 64-bit limbs. */
+#define IBZ_DIGITS (IBZ_LIMBS * (64 / RADIX))
     typedef uint64_t ibz_t[IBZ_LIMBS];
 
     typedef uint64_t limb_t;
     typedef uint32_t half_limb_t;
-    typedef uint64_t digit_t;
 
     void ibz_init(ibz_t *x);
 
@@ -97,7 +99,7 @@ extern "C"
 
     int ibz_cmp_int32(const ibz_t *x, int32_t y);
     int ibz_bitsize(const ibz_t *a);
-    /** Number of base-2^64 digits needed for |a| (one for zero). */
+    /** Number of base-2^RADIX digits needed for |a| (one for zero). */
     size_t ibz_digits_required(const ibz_t *a);
     /** Export |a| to exactly target_len available digits, clearing unused
      * digits.  Returns zero without a partial value when the buffer is too

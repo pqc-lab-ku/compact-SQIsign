@@ -12,7 +12,8 @@ add_test(sqisign_test_id2iso_${SVARIANT_LOWER} sqisign_test_id2iso_${SVARIANT_LO
 add_executable(sqisign_test_id2iso_hypercube_${SVARIANT_LOWER}
     ${LVLX_DIR}/test/test_hypercube_count.c)
 target_link_libraries(sqisign_test_id2iso_hypercube_${SVARIANT_LOWER}
-    ${LIB_ID2ISO_${SVARIANT_UPPER}})
+    ${LIB_ID2ISO_${SVARIANT_UPPER}} ${LIB_QUATERNION_${SVARIANT_UPPER}}
+    ${LIB_HD_${SVARIANT_UPPER}} sqisign_common_test)
 target_include_directories(sqisign_test_id2iso_hypercube_${SVARIANT_LOWER} PRIVATE
     ${INC_PUBLIC} ${INC_EC} ${INC_PRECOMP_${SVARIANT_UPPER}}
     ${INC_QUATERNION} ${INC_HD} ${INC_ID2ISO} ${INC_GF}
