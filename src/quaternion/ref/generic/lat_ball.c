@@ -433,6 +433,43 @@ certify_gram(const ibz_mat_4x4_t *G, int reduced, dpe_t shortest_lower)
     return 1;
 }
 
+/* An inconclusive interval is not a proof of non-positivity.  For small
+ * entries, certify Sylvester's criterion exactly.  If |G_ij| < 2^b, each
+ * determinant partial sum is bounded by 24*2^(4b) < 2^(4b+5); the bit gate
+ * reserves the sign bit and also bounds all cofactors in the existing
+ * inverse helper.  Large inputs keep the interval-only capacity policy. */
+static int
+certify_gram_small_exact(const ibz_mat_4x4_t *G)
+{
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            if (ibz_cmp(&(*G)[i][j], &(*G)[j][i]) != 0 ||
+                ibz_bitsize(&(*G)[i][j]) > (IBZ_BITS - 6) / 4)
+                return 0;
+        }
+    }
+
+    int ok = 1;
+    ibz_mat_4x4_t minor;
+    ibz_t det;
+    ibz_mat_4x4_init(&minor);
+    ibz_init(&det);
+    for (int n = 1; n <= 4; n++) {
+        ibz_mat_4x4_identity(&minor);
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                ibz_copy(&minor[i][j], &(*G)[i][j]);
+        ibz_mat_4x4_inv_with_det_as_denom(NULL, &det, &minor);
+        if (ibz_cmp(&det, &ibz_const_zero) <= 0) {
+            ok = 0;
+            break;
+        }
+    }
+    ibz_finalize(&det);
+    ibz_mat_4x4_finalize(&minor);
+    return ok;
+}
+
 static int
 bound_parallelogram_reduced(ibz_vec_4_t *box,
                             ibz_mat_4x4_t *U,
@@ -459,7 +496,7 @@ bound_parallelogram_reduced(ibz_vec_4_t *box,
     ibz_init(&eta_tail);
     dpe_init(shortest_lower);
 
-    if (!certify_gram(G, 0, NULL))
+    if (!certify_gram(G, 0, NULL) && !certify_gram_small_exact(G))
         goto cleanup;
 
     /* Work in a primal L2-reduced basis.  If T is the transformation built

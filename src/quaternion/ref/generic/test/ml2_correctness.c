@@ -1,6 +1,7 @@
 #include "lll_internals.h"
 #include "mlll_internals.h"
 #include "quaternion_tests.h"
+#include "dpe.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -1664,11 +1665,46 @@ cleanup:
     return failed;
 }
 
+static int
+ml2_test_dpe_zero_arithmetic(void)
+{
+    dpe_t zero, scale, result;
+    dpe_init(zero);
+    dpe_init(scale);
+    dpe_init(result);
+    int failed = 0;
+
+    // Zero's sentinel exponent must not participate in arithmetic, including
+    // in-place operations.  UBSAN also checks these operations for overflow.
+    for (int exponent = -128; exponent <= 128; exponent += 256) {
+        dpe_set_ui(zero, 0);
+        dpe_set_d(scale, 0.5);
+        DPE_EXP(scale) = exponent;
+        dpe_mul(result, zero, scale);
+        failed |= DPE_MANT(result) != 0.0 || DPE_EXP(result) != DPE_EXPMIN;
+        dpe_mul(result, scale, zero);
+        failed |= DPE_MANT(result) != 0.0 || DPE_EXP(result) != DPE_EXPMIN;
+        dpe_div(result, zero, scale);
+        failed |= DPE_MANT(result) != 0.0 || DPE_EXP(result) != DPE_EXPMIN;
+        dpe_div(scale, zero, scale);
+        failed |= DPE_MANT(scale) != 0.0 || DPE_EXP(scale) != DPE_EXPMIN;
+        dpe_mul(zero, zero, zero);
+        failed |= DPE_MANT(zero) != 0.0 || DPE_EXP(zero) != DPE_EXPMIN;
+    }
+    dpe_clear(result);
+    dpe_clear(scale);
+    dpe_clear(zero);
+    if (failed)
+        printf("[dpe_zero] FAIL: zero arithmetic is not normalized\n");
+    return failed;
+}
+
 int
 quat_test_ml2_correctness(void)
 {
     int failed = 0;
     printf("\nRunning ML2 exact-span and failure-publication tests\n");
+    failed |= ml2_test_dpe_zero_arithmetic();
     failed |= ml2_test_weighted_gram_and_precision();
     failed |= ml2_test_zero_and_dependent_dimension(4);
     failed |= ml2_test_zero_and_dependent_dimension(5);

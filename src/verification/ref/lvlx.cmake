@@ -12,8 +12,10 @@ target_compile_definitions(${LIB_VERIFICATION_${SVARIANT_UPPER}} PUBLIC SQISIGN_
 
 add_executable(sqisign_test_verification_encoding_${SVARIANT_LOWER}
     ${LVLX_DIR}/test/test_encoding.c)
+# Link the archive using randombytes before its provider. Keep RNG selection
+# local to this executable so other tests retain sqisign_common_test.
 target_link_libraries(sqisign_test_verification_encoding_${SVARIANT_LOWER}
-    ${LIB_VERIFICATION_${SVARIANT_UPPER}} sqisign_common_sys)
+    ${LIB_VERIFICATION_${SVARIANT_UPPER}} ${LIB_HD_${SVARIANT_UPPER}} sqisign_common_sys)
 target_include_directories(sqisign_test_verification_encoding_${SVARIANT_LOWER} PRIVATE
     ${INC_PUBLIC} ${INC_COMMON} ${INC_PRECOMP_${SVARIANT_UPPER}} ${INC_MP}
     ${INC_GF} ${INC_GF_${SVARIANT_UPPER}} ${INC_EC} ${INC_HD}

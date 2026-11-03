@@ -133,7 +133,15 @@ ibz_test_init_set_cmp()
     res = res | (ibz_get(&b) != 0);
     res = res | (ibz_cmp_int32(&b, 0) != 0);
 
+    /* Copy and swap support aliasing, including the all-one negative value. */
+    ibz_copy(&a, &a);
+    ibz_swap(&a, &a);
+    res = res | !ibz_is_one(&a);
+
     ibz_set(&a, -1);
+    ibz_copy(&a, &a);
+    ibz_swap(&a, &a);
+    res = res | (ibz_cmp_int32(&a, -1) != 0);
     res = res | !(ibz_cmp(&a, &b) < 0);
     res = res | !(ibz_cmp(&b, &c) < 0);
     res = res | !(ibz_cmp(&b, &a) > 0);
@@ -342,6 +350,36 @@ ibz_test_fixed_precision_regressions(void)
     }
     if (res != section_res) printf("  signed division regression failed\n");
 
+    /* Force quotient-estimate correction and add-back in base 2^32 and
+     * base 2^64: a = 2*d-1 has quotient one, including a three-word d whose
+     * zero middle word prevents correction until the subtraction. */
+    section_res = res;
+    for (unsigned word_bits = 32; word_bits <= 64; word_bits += 32) {
+        for (unsigned words = 2; words <= 3; ++words) {
+            ibz_set(&a, 1);
+            ibz_mul_2exp(&a, &a, word_bits);
+            ibz_sub(&a, &a, &ibz_const_one);
+            ibz_set(&b, 1);
+            ibz_mul_2exp(&b, &b, words * word_bits - 1);
+            ibz_add(&b, &b, &a);
+            ibz_mul_2exp(&a, &b, 1);
+            ibz_sub(&a, &a, &ibz_const_one);
+            ibz_div(&q, &r, &a, &b);
+            ibz_sub(&check, &b, &ibz_const_one);
+            res |= !ibz_is_one(&q) || ibz_cmp(&r, &check) != 0;
+
+            /* A saturated quotient word also exercises rhat overflow. */
+            ibz_set(&exponent, 1);
+            ibz_mul_2exp(&exponent, &exponent, word_bits);
+            ibz_sub(&exponent, &exponent, &ibz_const_one);
+            ibz_mul(&a, &b, &exponent);
+            ibz_add(&a, &a, &check);
+            ibz_div(&q, &r, &a, &b);
+            res |= ibz_cmp(&q, &exponent) != 0 || ibz_cmp(&r, &check) != 0;
+        }
+    }
+    if (res != section_res) printf("  division word-boundary regression failed\n");
+
     /* INTBIG_MIN remains usable in division, GCD, size and string paths. */
     section_res = res;
     ibz_set(&b, 3);
@@ -402,18 +440,22 @@ ibz_test_fixed_precision_regressions(void)
     /* Bounded export reports the required magnitude and never partially
      * publishes a value into an undersized buffer. */
     section_res = res;
-    digit_t too_small[IBZ_LIMBS - 1];
+    digit_t too_small[IBZ_DIGITS - 1];
     memset(too_small, 0xa5, sizeof(too_small));
-    res |= ibz_digits_required(&min_value) != IBZ_LIMBS;
-    res |= ibz_to_digits_checked(too_small, IBZ_LIMBS - 1, &min_value) != 0;
-    for (size_t i = 0; i < IBZ_LIMBS - 1; ++i)
+    res |= ibz_digits_required(&min_value) != IBZ_DIGITS;
+    res |= ibz_to_digits_checked(too_small, IBZ_DIGITS - 1, &min_value) != 0;
+    for (size_t i = 0; i < IBZ_DIGITS - 1; ++i)
         res |= too_small[i] != 0;
-    digit_t enough[IBZ_LIMBS];
-    res |= !ibz_to_digits_checked(enough, IBZ_LIMBS, &min_value);
-    res |= enough[IBZ_LIMBS - 1] != (UINT64_C(1) << 63);
+    digit_t enough[IBZ_DIGITS];
+    res |= !ibz_to_digits_checked(enough, IBZ_DIGITS, &min_value);
+    res |= enough[IBZ_DIGITS - 1] != ((digit_t)1 << (RADIX - 1));
+    ibz_copy_digits(&check, enough, IBZ_DIGITS);
+    res |= ibz_cmp(&check, &min_value) != 0;
     ibz_set(&a, -5);
-    res |= !ibz_to_digits_checked(enough, IBZ_LIMBS, &a);
+    res |= !ibz_to_digits_checked(enough, IBZ_DIGITS, &a);
     res |= enough[0] != 5;
+    for (size_t i = 1; i < IBZ_DIGITS; ++i)
+        res |= enough[i] != 0;
     if (res != section_res) printf("  bounded export regression failed\n");
 
     /* e=0 is reduced modulo m, and multiplication is correct even when the
@@ -1230,7 +1272,7 @@ ibz_test_copy_digits(void)
 {
     int res = 0;
     const digit_t d1[] = { 0x12345678 };
-    const digit_t d2[] = { 2, 1 };
+    const digit_t d2[64 / RADIX + 1] = { [0] = 2, [64 / RADIX] = 1 };
 
     const char d1str[] = "12345678";
     const char d2str[] = "10000000000000002"; // �� �� �߰� (64��Ʈ ����)
@@ -1243,7 +1285,7 @@ ibz_test_copy_digits(void)
     ibz_init(&d2_intbig);
 
     ibz_copy_digits(&d1_intbig, d1, 1);
-    ibz_copy_digits(&d2_intbig, d2, 2);
+    ibz_copy_digit_array(&d2_intbig, d2);
 
     ibz_convert_to_str(&d1_intbig, d1_intbig_str, 16);
     ibz_convert_to_str(&d2_intbig, d2_intbig_str, 16);
@@ -1287,7 +1329,7 @@ ibz_test_to_digits(void)
     ibz_init(&cof2);
 
     size_t d1_digits = 1;
-    size_t d2_digits = 2;
+    size_t d2_digits = 64 / RADIX + 1;
 
     digit_t d1[d1_digits];
     digit_t d2[d2_digits];
@@ -1301,27 +1343,33 @@ ibz_test_to_digits(void)
     ibz_copy_digits(&d2_intbig_rec, d2, d2_digits);
     ibz_copy_digits(&zero_intbig_rec, zero, 1);
 
-    if (ibz_cmp(&d1_intbig, &d1_intbig_rec) || ibz_cmp(&zero_intbig, &zero_intbig_rec)) {
+    if (ibz_cmp(&d1_intbig, &d1_intbig_rec) || ibz_cmp(&d2_intbig, &d2_intbig_rec) ||
+        ibz_cmp(&zero_intbig, &zero_intbig_rec) || d2[0] != 2 ||
+        d2[d2_digits - 1] != 1) {
         res = 1;
         goto err;
     }
 
     // 64��Ʈ ����
-    const digit_t p_cofactor_for_3g[5] = {
+    const digit_t p_cofactor_for_3g[320 / RADIX] = {
+#if RADIX == 64
         0x0000000000000000, 0x74f9dace0d9ec800, 0x63a25b437f655001, 0x0000000000000019, 0
+#else
+        0, 0, 0x0d9ec800, 0x74f9dace, 0x7f655001, 0x63a25b43, 0x19, 0, 0, 0
+#endif
     };
     digit_t p_cofactor_for_3g_rec[10] = { 0 };
 
-    ibz_copy_digits(&cof, p_cofactor_for_3g, 5);
+    ibz_copy_digit_array(&cof, p_cofactor_for_3g);
     ibz_to_digits(p_cofactor_for_3g_rec, &cof);
-    ibz_copy_digits(&cof2, p_cofactor_for_3g_rec, 5);
+    ibz_copy_digit_array(&cof2, p_cofactor_for_3g_rec);
 
     if (ibz_cmp(&cof, &cof2)) {
         res = 1;
         goto err;
     }
 
-    digit_t da[2] = { 0, 0 }; // �� �� �߰�
+    digit_t da[128 / RADIX] = { 0 }; // �� �� �߰�
 
     ibz_t strval, strval_check;
     ibz_init(&strval_check);

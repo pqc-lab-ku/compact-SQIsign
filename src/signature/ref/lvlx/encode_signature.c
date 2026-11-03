@@ -49,7 +49,7 @@ decode_digits(digit_t *x, const byte_t *enc, size_t nbytes, size_t ndigits)
 static byte_t *
 ibz_to_bytes(byte_t *enc, const ibz_t *x, size_t nbytes, bool sgn)
 {
-    if (nbytes == 0 || nbytes > IBZ_LIMBS * sizeof(digit_t) || nbytes > SIZE_MAX / 8) {
+    if (nbytes == 0 || nbytes > sizeof(ibz_t) || nbytes > SIZE_MAX / 8) {
         return NULL;
     }
 
@@ -80,11 +80,11 @@ ibz_to_bytes(byte_t *enc, const ibz_t *x, size_t nbytes, bool sgn)
 
     // Use full intbig capacity so conversion cannot overrun a field-sized VLA
     // before the encoded-size check has a chance to reject the value.
-    digit_t d[IBZ_LIMBS];
+    digit_t d[IBZ_DIGITS];
     memset(d, 0, sizeof(d));
     if (ibz_cmp(x, &ibz_const_zero) >= 0) {
         // non-negative, straightforward.
-        if (!ibz_to_digits_checked(d, IBZ_LIMBS, x)) {
+        if (!ibz_to_digits_checked(d, IBZ_DIGITS, x)) {
             return NULL;
         }
     } else {
@@ -93,11 +93,11 @@ ibz_to_bytes(byte_t *enc, const ibz_t *x, size_t nbytes, bool sgn)
         ibz_init(&tmp);
         ibz_neg(&tmp, x);
         ibz_sub(&tmp, &tmp, &ibz_const_one);
-        if (!ibz_to_digits_checked(d, IBZ_LIMBS, &tmp)) {
+        if (!ibz_to_digits_checked(d, IBZ_DIGITS, &tmp)) {
             ibz_finalize(&tmp);
             return NULL;
         }
-        for (size_t i = 0; i < IBZ_LIMBS; ++i)
+        for (size_t i = 0; i < IBZ_DIGITS; ++i)
             d[i] = ~d[i];
         ibz_finalize(&tmp);
     }
