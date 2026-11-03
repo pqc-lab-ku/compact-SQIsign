@@ -260,7 +260,7 @@ Example code using the NIST API is in `apps/example_nistapi.c`.
 - `quaternion` — quaternion orders and ideals; this is where the MLLL / ML2
   replacement of HNF lives.
 - `hd` — (2,2)-isogenies in the theta model.
-- `id2iso` — Ideal/isogeny conversion.
+- `id2iso` — Ideal ↔ Isogeny.
 - `verification` — verification protocol.
 - `signature` — key generation and signature protocols.
 
